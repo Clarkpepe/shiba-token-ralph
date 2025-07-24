@@ -1,0 +1,45 @@
+import "std/fungible_token_interface"
+
+// ShibaToken contract: a meme token with 30% of total supply permanently locked
+Contract ShibaToken(
+  // Token symbol (e.g. "SHIBA")
+  symbol: ByteVec,
+  // Token name (e.g. "ShibaToken")
+  name: ByteVec,
+  // Decimal precision (typically 18)
+  decimals: U256,
+  // Total token supply (e.g. 1_000_000_000)
+  const totalSupply: U256,
+  // Locked supply amount (e.g. 300_000_000)
+  const lockedAmount: U256,
+  // Deployer/owner address
+  owner: Address
+) implements IFungibleToken {
+
+  // Available balance for owner (70% of total supply)
+  mut ownerBalance: U256 = totalSupply - lockedAmount
+
+  event Transfer(from: Address, to: Address, amount: U256)
+
+  pub fn getSymbol() -> ByteVec { symbol }
+  pub fn getName() -> ByteVec { name }
+  pub fn getDecimals() -> U256 { decimals }
+  pub fn getTotalSupply() -> U256 { totalSupply }
+
+  // Transfer function (only sends from owner's unlocked balance)
+  @using(preapprovedAssets = true, assetsInContract = true, updateFields = true, checkExternalCaller = false)
+  pub fn transfer(to: Address, amount: U256) -> Bool {
+    if amount > ownerBalance {
+      return false
+    }
+    transferToken!(selfAddress!(), to, selfTokenId!(), amount)
+    ownerBalance = ownerBalance - amount
+    emit Transfer(selfAddress!(), to, amount)
+    return true
+  }
+
+  // View function to check owner's remaining balance
+  pub fn balanceOf() -> U256 {
+    ownerBalance
+  }
+}
